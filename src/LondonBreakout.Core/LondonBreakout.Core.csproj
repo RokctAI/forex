@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!--
+    Pure strategy logic: session/DST resolution, range computation, position sizing and the
+    risk guards. Deliberately has ZERO dependency on cAlgo.API so it can be unit-tested on any
+    machine without the cTrader assembly or a Windows host.
+
+    Multi-targeted so the tests can run on the modern runtime while proving the same sources
+    still compile under net6.0, which is what cTrader Algo loads.
+  -->
+  <PropertyGroup>
+    <TargetFrameworks>net6.0;net8.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <GenerateDocumentationFile>false</GenerateDocumentationFile>
+    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
+  </PropertyGroup>
+
+</Project>

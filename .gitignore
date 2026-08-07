@@ -1,0 +1,25 @@
+# Build output
+bin/
+obj/
+[Dd]ebug/
+[Rr]elease/
+*.user
+*.suo
+
+# cTrader Algo build artefacts
+*.algo
+*.algo.metadata
+
+# The cTrader.Automate targets copy the built .algo into the local cTrader sources
+# folder after every build. On a dev machine that is the point; in the repo it is noise.
+cAlgo/
+
+# IDE
+.vs/
+.vscode/
+.idea/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
