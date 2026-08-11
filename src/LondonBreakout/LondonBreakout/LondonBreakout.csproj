@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net6.0</TargetFramework>
+    <LangVersion>latest</LangVersion>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <AssemblyName>LondonBreakout</AssemblyName>
+    <RootNamespace>LondonBreakout</RootNamespace>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="cTrader.Automate" Version="1.0.19" />
+  </ItemGroup>
+
+  <!--
+    The pure logic is COMPILED IN as source rather than pulled in with a ProjectReference.
+
+    Reason: the cTrader.Automate MSBuild targets package the build output into a single .algo
+    file for cTrader to load. A ProjectReference produces a second assembly that is not
+    guaranteed to be carried into that package, which would give a bot that builds cleanly and
+    then fails at load time with a missing-assembly error. Linking the sources sidesteps the
+    question entirely (everything lands in one assembly) while the separate
+    LondonBreakout.Core project still exists so the unit tests can reference it normally.
+  -->
+  <ItemGroup>
+    <Compile Include="..\..\LondonBreakout.Core\**\*.cs"
+             Exclude="..\..\LondonBreakout.Core\bin\**\*.cs;..\..\LondonBreakout.Core\obj\**\*.cs"
+             LinkBase="Core" />
+  </ItemGroup>
+
+</Project>
