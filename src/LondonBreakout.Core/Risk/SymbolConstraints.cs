@@ -37,14 +37,40 @@ namespace LondonBreakout.Core.Risk
         public double VolumeInUnitsMax { get; }
         public double VolumeInUnitsStep { get; }
 
-        /// <summary>Price increment of one pip, e.g. 0.0001 on EURUSD, 0.01 on USDJPY.</summary>
+        /// <summary>
+        /// Price increment of one pip. Read from the symbol, never assumed: it is 0.0001 on
+        /// GBPUSD (5-digit quote) and 0.01 on GBPJPY (3-digit quote). Code that hardcodes 0.0001
+        /// is wrong by a factor of 100 on every JPY-quoted pair.
+        /// </summary>
         public double PipSize { get; }
 
         /// <summary>
         /// Account-currency value of a one-pip move on ONE unit of volume. This is cTrader's
-        /// <c>Symbol.PipValue</c>, which already handles cross-currency conversion back to the
-        /// deposit currency -- which is exactly why we take it as an input rather than trying to
-        /// recompute it.
+        /// <c>Symbol.PipValue</c>, taken as an input rather than recomputed.
+        ///
+        /// WHY THIS MUST NOT BE HAND-ROLLED
+        /// --------------------------------
+        /// A pip value is only in account currency after a conversion whose rate the bot does
+        /// not have. Take the live case: GBPJPY traded from a ZAR (or USD) account.
+        ///
+        ///   * A one-pip move on GBPJPY earns JPY, because JPY is the QUOTE currency. One pip on
+        ///     one unit is 0.01 JPY.
+        ///   * Turning that into account currency needs the current JPY/ZAR (or JPY/USD) rate.
+        ///     That rate moves independently of GBPJPY, so the account-currency value of a pip
+        ///     drifts even on a day GBPJPY does not move at all.
+        ///   * GBPUSD from the same ZAR account has the same shape with a different leg: pips
+        ///     are earned in USD and converted at USD/ZAR.
+        ///
+        /// Inside a cBot this is already solved: <c>Symbol.PipValue</c> is quoted in the deposit
+        /// currency and cTrader keeps the conversion leg current. So the correct thing to do --
+        /// and what this type does -- is take that number and multiply, never reconstruct it.
+        ///
+        /// This is called out because it is precisely the step a port to an external market-data
+        /// API would get wrong. Such an API typically hands back a raw quote and nothing else; a
+        /// naive port multiplies stop distance by 0.0001, or by a contract size, and produces
+        /// position sizes that are wrong by whatever JPY/ZAR happens to be -- roughly two orders
+        /// of magnitude, and silently, because the resulting number still looks like a volume.
+        /// Any such port must source a live conversion rate and apply it here explicitly.
         /// </summary>
         public double PipValuePerUnit { get; }
 

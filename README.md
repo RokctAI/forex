@@ -10,7 +10,7 @@ no discretionary decisions, and risk controls that cannot be bypassed by the str
 
 | Path | What it is |
 |---|---|
-| [`src/LondonBreakout/`](src/LondonBreakout/README.md) | London breakout straddle cBot. Range to 09:00 London, buy stop above / sell stop below. |
+| [`src/LondonBreakout/`](src/LondonBreakout/README.md) | London breakout straddle cBot. Range to 09:00 London, buy stop above / sell stop below. **Tuesdays only; GBPJPY primary, GBPUSD secondary.** |
 | `src/LondonBreakout.Core/` | Pure strategy logic — sessions/DST, range computation, position sizing, risk guards. No cTrader dependency. |
 | `tests/LondonBreakout.Core.Tests/` | Unit tests for the above. |
 
@@ -39,8 +39,20 @@ dotnet test
 The build produces `LondonBreakout.algo` and, where a local cTrader installation exists, copies
 it into the cTrader sources folder.
 
+Both commands run in CI on every push and pull request — see
+[`.github/workflows/ci.yml`](.github/workflows/ci.yml).
+
 ## Status
 
-Early. The London breakout bot compiles and its pure logic is unit tested, but **nothing here
-has been backtested or run against a live or demo account yet.** See the bot's own README for
-the recommended testing path and its list of open questions.
+Early. The London breakout bot compiles and its pure logic is unit tested (97 tests), but
+**no market data has ever been through it** — nothing here has been backtested or run against a
+live or demo account.
+
+The strategy is now specified as **Tuesday only**, on **GBPJPY** primarily and GBPUSD
+secondarily. That carries a consequence worth stating on the front page: one trading day a week
+is roughly **52 opportunities a year**, and not every Tuesday produces a fill. **A backtest needs
+at least five years of tick data before its result means anything** — a single year cannot clear
+the usual ≥30-trade bar with any margin.
+
+See the [bot's README](src/LondonBreakout/README.md) for how to run that backtest properly, the
+per-symbol pip handling that GBPJPY demands, and the remaining open questions.

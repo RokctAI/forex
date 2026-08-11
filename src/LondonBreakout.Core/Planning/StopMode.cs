@@ -17,7 +17,11 @@ namespace LondonBreakout.Core.Planning
         /// <summary>A fixed pip distance from the entry, ignoring range geometry.</summary>
         FixedPips = 1,
 
-        /// <summary>A multiple of ATR, so the stop scales with recent volatility.</summary>
+        /// <summary>
+        /// A multiple of the reference ATR, so the stop scales with the symbol's own volatility
+        /// instead of being a pip count that is mis-scaled on one of the two symbols. The
+        /// reference ATR is a DAILY ATR by default, so sane multipliers here are below 1.
+        /// </summary>
         AtrMultiple = 2,
     }
 }
