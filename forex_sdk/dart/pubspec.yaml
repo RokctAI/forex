@@ -1,0 +1,30 @@
+name: forex_sdk
+description: "Forex domain SDK — versioned strategy specs, resolved risk presets, broker-account dashboard. Consumes wallet/subscriptions/plans only via consumer-owned interfaces (ADR-005)."
+version: 0.1.0
+publish_to: 'none'
+
+environment:
+  sdk: '>=3.5.0 <4.0.0'
+  flutter: '>=3.24.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # ADR-005: a feature SDK may import base_sdk and nothing else. Anything
+  # forex needs from wallet_sdk, subscriptions_sdk or payments_sdk is
+  # declared as a narrow abstract interface in lib/src/common/domain/interface/
+  # and satisfied by a host-owned adapter in templates/routes/.
+  base_sdk:
+    path: ../base
+  get_it: ^8.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^5.0.0
+
+# Workspace-relative override so this package resolves standalone for
+# analysis and codegen. Ignored when a host app is the resolution root.
+dependency_overrides:
+  base_sdk:
+    path: ../../../core/base/dart

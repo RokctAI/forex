@@ -1,0 +1,64 @@
+{
+  "doctype": "DocType",
+  "name": "Forex Strategy",
+  "engine": "InnoDB",
+  "istable": 0,
+  "module": "{module_name}",
+  "autoname": "hash",
+  "fields": [
+    {
+      "fieldname": "strategy_key",
+      "fieldtype": "Data",
+      "label": "Strategy Key",
+      "reqd": 1,
+      "unique": 1,
+      "in_list_view": 1,
+      "in_standard_filter": 1,
+      "description": "Stable machine identifier a client pins against, e.g. 'london_breakout'. Never renamed once published — a rename would orphan every Forex User Strategy row pointing at it."
+    },
+    {
+      "fieldname": "title",
+      "fieldtype": "Data",
+      "label": "Title",
+      "reqd": 1,
+      "in_list_view": 1
+    },
+    {
+      "fieldname": "summary",
+      "fieldtype": "Small Text",
+      "label": "Summary",
+      "description": "One-paragraph plain-language description shown in the catalog. Read by users deciding what to run with real money — say what it does and when it trades, not how good it is."
+    },
+    {
+      "fieldname": "min_tier",
+      "fieldtype": "Select",
+      "label": "Minimum Subscription Tier",
+      "options": "standard\npro",
+      "default": "standard",
+      "reqd": 1,
+      "in_list_view": 1,
+      "description": "The tier a subscription must hold to RUN this strategy. Browsing the catalog is free at every tier — see rforex.entitlements. An unset value resolves to 'standard', never to free."
+    },
+    {
+      "fieldname": "enabled",
+      "fieldtype": "Check",
+      "label": "Listed In Catalog",
+      "default": "1",
+      "in_list_view": 1,
+      "description": "Unchecking removes the strategy from the catalog for new users. It does NOT stop anybody already running it — that is what blocking a version does, and it is deliberately a separate, louder action."
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "create": 1,
+      "write": 1,
+      "delete": 1
+    },
+    {
+      "role": "All",
+      "read": 1
+    }
+  ]
+}
