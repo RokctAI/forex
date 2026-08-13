@@ -40,8 +40,9 @@ namespace LondonBreakout
         public string SessionTimeZoneId { get; set; }
 
         [Parameter("Range start hour", Group = "Session", DefaultValue = 0, MinValue = 0, MaxValue = 23,
-            Description = "OPEN QUESTION: broker day open, London midnight or Asian session? Defaults to " +
-                          "00:00 in the session timezone.")]
+            Description = "OPEN QUESTION, still unanswered: London midnight or the broker's daily " +
+                          "boundary (Pepperstone rolls at 17:00 New York)? The two give materially " +
+                          "different ranges. Defaults to 00:00 in the session timezone.")]
         public int RangeStartHour { get; set; }
 
         [Parameter("Range start minute", Group = "Session", DefaultValue = 0, MinValue = 0, MaxValue = 59)]
@@ -55,8 +56,11 @@ namespace LondonBreakout
         [Parameter("Signal minute", Group = "Session", DefaultValue = 0, MinValue = 0, MaxValue = 59)]
         public int SignalMinute { get; set; }
 
-        [Parameter("Trading days", Group = "Session", DefaultValue = "Mon,Tue,Wed,Thu,Fri",
-            Description = "OPEN QUESTION: every weekday or Tuesday only? Comma-separated day names.")]
+        [Parameter("Trading days", Group = "Session", DefaultValue = "Tue",
+            Description = "Comma-separated day names. Ships as Tuesday only: Monday is a stay-away day " +
+                          "and the strategy trades Tuesdays. Widening this is a research change, not a " +
+                          "supported configuration. NOTE: one day a week is ~52 chances a year, so a " +
+                          "meaningful backtest needs several years of data. See the README.")]
         public string TradingDays { get; set; }
 
         [Parameter("Range timeframe", Group = "Session", DefaultValue = "Minute5",
@@ -76,9 +80,31 @@ namespace LondonBreakout
 
         // ---------------------------------------------------------------- Strategy parameters
 
+        [Parameter("Reference ATR timeframe", Group = "Strategy", DefaultValue = "Daily",
+            Description = "Timeframe of the ATR that every volatility-relative setting is a multiple of. " +
+                          "DAILY on purpose: the point of these settings is to scale with how far the " +
+                          "symbol travels in a day, which is what differs between GBPJPY and GBPUSD. An " +
+                          "intraday ATR would not capture that.")]
+        public TimeFrame AtrTimeFrame { get; set; }
+
+        [Parameter("ATR periods", Group = "Strategy", DefaultValue = 14, MinValue = 1,
+            Description = "Periods for the reference ATR, on the timeframe above.")]
+        public int AtrPeriods { get; set; }
+
+        [Parameter("Entry buffer mode", Group = "Strategy", DefaultValue = DistanceMode.AtrMultiple,
+            Description = "AtrMultiple (default) scales the buffer with the symbol's own volatility, so " +
+                          "one setting works on both GBPJPY and GBPUSD. Pips uses a fixed count, which " +
+                          "is necessarily mis-scaled on one of the two.")]
+        public DistanceMode EntryBufferMode { get; set; }
+
         [Parameter("Entry buffer (pips)", Group = "Strategy", DefaultValue = 1.0, MinValue = 0.0, Step = 0.1,
-            Description = "How far beyond the range edge each stop order sits.")]
+            Description = "Only used when Entry buffer mode is Pips.")]
         public double EntryBufferPips { get; set; }
+
+        [Parameter("Entry buffer (x ATR)", Group = "Strategy", DefaultValue = 0.05, MinValue = 0.0, Step = 0.01,
+            Description = "Only used when Entry buffer mode is AtrMultiple. A multiple of the reference " +
+                          "ATR (daily by default), so 0.05 is a twentieth of a typical day's range.")]
+        public double EntryBufferAtr { get; set; }
 
         [Parameter("Stop mode", Group = "Strategy", DefaultValue = StopMode.OppositeRangeSide,
             Description = "OPEN QUESTION: no stop rule was specified. Defaults to the opposite side of " +
@@ -86,14 +112,13 @@ namespace LondonBreakout
         public StopMode StopLossMode { get; set; }
 
         [Parameter("Fixed stop (pips)", Group = "Strategy", DefaultValue = 20.0, MinValue = 0.1,
-            Description = "Only used when Stop mode is FixedPips.")]
+            Description = "Only used when Stop mode is FixedPips. A pip count is symbol-specific: a " +
+                          "value tuned on GBPUSD is far too tight on GBPJPY.")]
         public double FixedStopPips { get; set; }
 
-        [Parameter("ATR periods", Group = "Strategy", DefaultValue = 14, MinValue = 1)]
-        public int AtrPeriods { get; set; }
-
-        [Parameter("ATR multiplier", Group = "Strategy", DefaultValue = 1.5, MinValue = 0.1, Step = 0.1,
-            Description = "Only used when Stop mode is AtrMultiple.")]
+        [Parameter("ATR multiplier", Group = "Strategy", DefaultValue = 0.5, MinValue = 0.01, Step = 0.05,
+            Description = "Only used when Stop mode is AtrMultiple. A multiple of the reference ATR, " +
+                          "which is DAILY by default -- so values here belong below 1.")]
         public double AtrMultiplier { get; set; }
 
         [Parameter("Target (R multiple)", Group = "Strategy", DefaultValue = 1.0, MinValue = 0.1, Step = 0.1,
@@ -101,14 +126,29 @@ namespace LondonBreakout
                           "distance away as the stop.")]
         public double TargetRMultiple { get; set; }
 
+        [Parameter("Range filter mode", Group = "Strategy", DefaultValue = DistanceMode.AtrMultiple,
+            Description = "How the min/max range filters are expressed. AtrMultiple (default) keeps one " +
+                          "setting valid on both symbols; GBPJPY's typical range is about double " +
+                          "GBPUSD's, so a shared pip floor cannot filter both correctly.")]
+        public DistanceMode RangeFilterMode { get; set; }
+
         [Parameter("Min range (pips)", Group = "Strategy", DefaultValue = 5.0, MinValue = 0.0, Step = 0.5,
-            Description = "Skip the session if the range is narrower than this. A tight stop implies a " +
-                          "very large position, so this is a sizing safeguard.")]
+            Description = "Only used when Range filter mode is Pips. Skip the session if the range is " +
+                          "narrower than this; a tight stop implies a very large position.")]
         public double MinRangePips { get; set; }
 
+        [Parameter("Min range (x ATR)", Group = "Strategy", DefaultValue = 0.25, MinValue = 0.0, Step = 0.05,
+            Description = "Only used when Range filter mode is AtrMultiple. Skip the session if the " +
+                          "overnight range is below this fraction of the reference ATR.")]
+        public double MinRangeAtr { get; set; }
+
         [Parameter("Max range (pips)", Group = "Strategy", DefaultValue = 0.0, MinValue = 0.0, Step = 1.0,
-            Description = "Skip the session if the range is wider than this. 0 disables the check.")]
+            Description = "Only used when Range filter mode is Pips. 0 disables the check.")]
         public double MaxRangePips { get; set; }
+
+        [Parameter("Max range (x ATR)", Group = "Strategy", DefaultValue = 0.0, MinValue = 0.0, Step = 0.1,
+            Description = "Only used when Range filter mode is AtrMultiple. 0 disables the check.")]
+        public double MaxRangeAtr { get; set; }
 
         [Parameter("Cancel sibling on fill (OCO)", Group = "Strategy", DefaultValue = true,
             Description = "OPEN QUESTION: should the other side stay live after one fills? Default is to " +
@@ -174,6 +214,7 @@ namespace LondonBreakout
         private RiskLimits _limits;
 
         private Bars _rangeBars;
+        private Bars _atrBars;
         private AverageTrueRange _atr;
 
         private DateTime _lastHandledSessionDate = DateTime.MinValue;
@@ -211,13 +252,16 @@ namespace LondonBreakout
 
             _planner = new BreakoutPlanner(new BreakoutPlannerSettings
             {
-                EntryBufferPips = EntryBufferPips,
+                EntryBuffer = new DistanceSpec(EntryBufferMode, EntryBufferPips, EntryBufferAtr),
                 StopMode = StopLossMode,
                 FixedStopPips = FixedStopPips,
                 AtrMultiplier = AtrMultiplier,
                 TargetRMultiple = TargetRMultiple,
-                MinRangePips = MinRangePips,
-                MaxRangePips = MaxRangePips,
+                MinRange = new DistanceSpec(RangeFilterMode, MinRangePips, MinRangeAtr),
+                MaxRange = new DistanceSpec(RangeFilterMode, MaxRangePips, MaxRangeAtr),
+
+                // Genuinely a pip quantity: it comes from the broker, per symbol, already in
+                // pips (or normalised into pips just below). Not something to make relative.
                 MinStopDistancePips = ResolveBrokerMinStopPips(),
             });
 
@@ -237,7 +281,15 @@ namespace LondonBreakout
             _guard.Initialise(Account.Equity, _clock.SessionDateOf(Server.TimeInUtc));
 
             _rangeBars = MarketData.GetBars(RangeTimeFrame, SymbolName);
-            _atr = Indicators.AverageTrueRange(_rangeBars, AtrPeriods, MovingAverageType.Exponential);
+
+            // The reference ATR gets its OWN bar series, on its own timeframe.
+            //
+            // It used to be computed on the range series (m5 by default), which made every
+            // ATR-relative setting a multiple of a five-minute true range -- a few pips. That is
+            // not a volatility scale, and it is not what distinguishes GBPJPY from GBPUSD. A
+            // daily ATR is.
+            _atrBars = MarketData.GetBars(AtrTimeFrame, SymbolName);
+            _atr = Indicators.AverageTrueRange(_atrBars, AtrPeriods, MovingAverageType.Exponential);
 
             Positions.Opened += OnPositionOpened;
 
@@ -256,6 +308,16 @@ namespace LondonBreakout
                 TradingDays,
                 RiskPercent,
                 TradingEnabled ? "ON" : "OFF (nothing will be placed)");
+
+            // Print the per-symbol figures every distance and every position size depends on.
+            // GBPJPY should report 3 digits and a 0.01 pip; GBPUSD 5 digits and a 0.0001 pip. If
+            // these look wrong for the attached symbol, nothing downstream can be right, so it
+            // is worth one line at startup rather than a surprise in the sizing.
+            Print(
+                "Symbol {0}: {1} digits, pip size {2}, pip value {3} {4} per unit, " +
+                "volume grid min/step/max {5}/{6}/{7}.",
+                SymbolName, Symbol.Digits, Symbol.PipSize, Symbol.PipValue, Account.Asset.Name,
+                Symbol.VolumeInUnitsMin, Symbol.VolumeInUnitsStep, Symbol.VolumeInUnitsMax);
         }
 
         /// <summary>
@@ -331,7 +393,7 @@ namespace LondonBreakout
                 return;
             }
 
-            var atrInPrice = _atr.Result.Count > 0 ? _atr.Result.LastValue : 0.0;
+            var atrInPrice = ReferenceAtr();
             var plan = _planner.BuildPlan(range, Symbol.PipSize, atrInPrice);
 
             if (!plan.HasLegs)
@@ -341,11 +403,16 @@ namespace LondonBreakout
                 return;
             }
 
+            // Prices are formatted to the symbol's own digit count. A hardcoded F5 renders
+            // GBPJPY as 195.12300, which reads like a 5-digit quote and makes the log actively
+            // misleading on the primary symbol.
             Print(
-                "Session {0:yyyy-MM-dd}: range {1:F5} / {2:F5} ({3:F1} pips, {4} bars). " +
-                "Buy stop {5:F5}, sell stop {6:F5}.",
-                window.SessionDate, range.Low, range.High, range.HeightInPips(Symbol.PipSize), range.BarCount,
-                plan.BuyLeg.EntryPrice, plan.SellLeg.EntryPrice);
+                "Session {0:yyyy-MM-dd}: range {1} / {2} ({3:F1} pips, {4} bars), reference ATR {5:F1} pips. " +
+                "Buy stop {6}, sell stop {7}.",
+                window.SessionDate, Px(range.Low), Px(range.High),
+                range.HeightInPips(Symbol.PipSize), range.BarCount,
+                atrInPrice / Symbol.PipSize,
+                Px(plan.BuyLeg.EntryPrice), Px(plan.SellLeg.EntryPrice));
 
             var constraints = BuildSymbolConstraints();
 
@@ -435,7 +502,7 @@ namespace LondonBreakout
             if (result.IsSuccessful)
             {
                 Print("  {0} placed @{1} SL {2} TP {3} ({4:F1} pip stop)",
-                    leg.IsBuy ? "BUY STOP" : "SELL STOP", entry, stopLoss, takeProfit,
+                    leg.IsBuy ? "BUY STOP" : "SELL STOP", Px(entry), Px(stopLoss), Px(takeProfit),
                     leg.StopDistanceInPips(Symbol.PipSize));
             }
             else
@@ -456,6 +523,11 @@ namespace LondonBreakout
             if (tickSize <= 0) return Math.Round(price, Symbol.Digits);
             return Math.Round(Math.Round(price / tickSize) * tickSize, Symbol.Digits);
         }
+
+        /// <summary>
+        /// Formats a price at the symbol's own precision -- 3 decimals on GBPJPY, 5 on GBPUSD.
+        /// </summary>
+        private string Px(double price) => price.ToString("F" + Symbol.Digits);
 
         private string BuildComment(BreakoutLeg leg)
         {
@@ -493,9 +565,9 @@ namespace LondonBreakout
             foreach (var order in toCancel)
             {
                 var result = order.Cancel();
-                Print("OCO: {0} sibling {1} order @{2:F5}",
+                Print("OCO: {0} sibling {1} order @{2}",
                     result.IsSuccessful ? "cancelled" : "FAILED to cancel",
-                    order.TradeType, order.TargetPrice);
+                    order.TradeType, Px(order.TargetPrice));
             }
         }
 
@@ -556,6 +628,27 @@ namespace LondonBreakout
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// The reference ATR, in price units, taken from the last CLOSED bar of the ATR series.
+        ///
+        /// Not <c>LastValue</c>: on a daily series that is the bar for today, which at 09:00
+        /// London is a few hours old and still forming. Its true range only reflects the session
+        /// so far, so the ATR would be depressed on quiet mornings and inflated by whatever the
+        /// range period just did -- letting the session being traded feed back into the levels
+        /// used to trade it. The last completed bar is stable and known.
+        /// </summary>
+        private double ReferenceAtr()
+        {
+            var series = _atr.Result;
+
+            // Count-1 is the forming bar, so the last closed value is at Count-2.
+            var lastClosed = series.Count - 2;
+            if (lastClosed < 0) return 0.0;
+
+            var value = series[lastClosed];
+            return double.IsNaN(value) || value <= 0 ? 0.0 : value;
         }
 
         /// <summary>

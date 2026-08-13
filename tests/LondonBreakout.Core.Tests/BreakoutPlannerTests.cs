@@ -16,10 +16,11 @@ namespace LondonBreakout.Core.Tests
 
         private static BreakoutPlannerSettings Settings() => new BreakoutPlannerSettings
         {
-            EntryBufferPips = 1.0,
+            EntryBuffer = DistanceSpec.FromPips(1.0),
             StopMode = StopMode.OppositeRangeSide,
             TargetRMultiple = 1.0,
-            MinRangePips = 5.0,
+            MinRange = DistanceSpec.FromPips(5.0),
+            MaxRange = DistanceSpec.FromPips(0.0),
         };
 
         [Fact]
@@ -132,31 +133,31 @@ namespace LondonBreakout.Core.Tests
         {
             // A 2 pip range would produce a ~3 pip stop and therefore an enormous position.
             var settings = Settings();
-            settings.MinRangePips = 5.0;
+            settings.MinRange = DistanceSpec.FromPips(5.0);
 
             var plan = new BreakoutPlanner(settings).BuildPlan(Range(1.0998, 1.1000), PipSize);
 
             Assert.False(plan.HasLegs);
-            Assert.Contains("MinRangePips", plan.RejectionReason);
+            Assert.Contains("below the minimum", plan.RejectionReason);
         }
 
         [Fact]
         public void A_range_wider_than_the_maximum_is_rejected_when_the_check_is_enabled()
         {
             var settings = Settings();
-            settings.MaxRangePips = 40.0;
+            settings.MaxRange = DistanceSpec.FromPips(40.0);
 
             var plan = new BreakoutPlanner(settings).BuildPlan(Range(), PipSize); // 50 pips
 
             Assert.False(plan.HasLegs);
-            Assert.Contains("MaxRangePips", plan.RejectionReason);
+            Assert.Contains("exceeds the maximum", plan.RejectionReason);
         }
 
         [Fact]
         public void Max_range_check_is_disabled_at_zero()
         {
             var settings = Settings();
-            settings.MaxRangePips = 0.0;
+            settings.MaxRange = DistanceSpec.FromPips(0.0);
 
             Assert.True(new BreakoutPlanner(settings).BuildPlan(Range(), PipSize).HasLegs);
         }

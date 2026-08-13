@@ -10,16 +10,24 @@ namespace LondonBreakout.Core.Planning
         /// How far beyond the range edge the entry sits. A breakout order placed exactly on the
         /// line gets triggered by the spread wobbling around the level; a small buffer means
         /// price has to actually clear the line.
+        ///
+        /// Defaults to an ATR multiple rather than a fixed pip count so that one setting is
+        /// sane on both GBPJPY and GBPUSD. See <see cref="DistanceSpec"/> for why a fixed pip
+        /// buffer cannot be right on both.
         /// </summary>
-        public double EntryBufferPips { get; set; } = 1.0;
+        public DistanceSpec EntryBuffer { get; set; } = DistanceSpec.FromAtr(0.05);
 
         public StopMode StopMode { get; set; } = StopMode.OppositeRangeSide;
 
         /// <summary>Used when <see cref="StopMode"/> is <see cref="StopMode.FixedPips"/>.</summary>
         public double FixedStopPips { get; set; } = 20.0;
 
-        /// <summary>Used when <see cref="StopMode"/> is <see cref="StopMode.AtrMultiple"/>.</summary>
-        public double AtrMultiplier { get; set; } = 1.5;
+        /// <summary>
+        /// Used when <see cref="StopMode"/> is <see cref="StopMode.AtrMultiple"/>. A multiple of
+        /// the same reference ATR every other ATR-relative setting uses -- which is a DAILY ATR
+        /// by default, not an intraday one, so sane values here are well below 1.
+        /// </summary>
+        public double AtrMultiplier { get; set; } = 0.5;
 
         /// <summary>Target distance as a multiple of the stop distance. 1.0 = a 1:1 payoff.</summary>
         public double TargetRMultiple { get; set; } = 1.0;
@@ -28,15 +36,19 @@ namespace LondonBreakout.Core.Planning
         /// Reject sessions whose range is narrower than this. A very tight range yields a very
         /// tight stop, and the position sizer would respond by asking for an enormous position.
         /// This is a risk control, not a signal filter.
+        ///
+        /// Volatility-relative by default for the same reason as the entry buffer: a 5-pip floor
+        /// is a meaningful filter on GBPUSD and almost no filter at all on GBPJPY, whose typical
+        /// daily range is roughly double.
         /// </summary>
-        public double MinRangePips { get; set; } = 5.0;
+        public DistanceSpec MinRange { get; set; } = DistanceSpec.FromAtr(0.25);
 
         /// <summary>
-        /// Reject sessions whose range is wider than this. Zero disables the check. A very wide
-        /// range means the opposite-side stop is far away, so the sized position becomes tiny
-        /// and the trade is mostly noise.
+        /// Reject sessions whose range is wider than this. A zero pip count or zero ATR multiple
+        /// disables the check. A very wide range means the opposite-side stop is far away, so the
+        /// sized position becomes tiny and the trade is mostly noise.
         /// </summary>
-        public double MaxRangePips { get; set; } = 0.0;
+        public DistanceSpec MaxRange { get; set; } = DistanceSpec.FromAtr(0.0);
 
         /// <summary>
         /// Broker minimum distance between entry and stop, in pips. Orders violating it are
@@ -59,15 +71,25 @@ namespace LondonBreakout.Core.Planning
 
             if (_settings.TargetRMultiple <= 0)
                 throw new ArgumentException("Target R multiple must be positive.", nameof(settings));
-            if (_settings.EntryBufferPips < 0)
-                throw new ArgumentException("Entry buffer cannot be negative.", nameof(settings));
+            if (_settings.EntryBuffer == null)
+                throw new ArgumentException("EntryBuffer must be set.", nameof(settings));
+            if (_settings.MinRange == null)
+                throw new ArgumentException("MinRange must be set.", nameof(settings));
+            if (_settings.MaxRange == null)
+                throw new ArgumentException("MaxRange must be set.", nameof(settings));
         }
 
         /// <param name="range">The pre-session range.</param>
-        /// <param name="pipSize">Symbol pip size, e.g. 0.0001 for EURUSD.</param>
+        /// <param name="pipSize">
+        /// The symbol's own pip size -- 0.01 on GBPJPY (3-digit quote), 0.0001 on GBPUSD
+        /// (5-digit quote). Never assumed; the bot passes <c>Symbol.PipSize</c> straight through.
+        /// </param>
         /// <param name="atrInPrice">
-        /// Current ATR expressed in price units. Only consulted for
-        /// <see cref="StopMode.AtrMultiple"/>; pass 0 otherwise.
+        /// The reference ATR in price units, on the symbol being traded. Consulted by every
+        /// setting configured as an ATR multiple -- the entry buffer and range floor/ceiling by
+        /// default, plus the stop when <see cref="StopMode.AtrMultiple"/> is selected. Pass 0
+        /// when unavailable; sessions needing it are then skipped rather than silently falling
+        /// back to a pip value that would be mis-scaled on one of the two symbols.
         /// </param>
         public BreakoutPlan BuildPlan(OpeningRange range, double pipSize, double atrInPrice = 0.0)
         {
@@ -76,20 +98,29 @@ namespace LondonBreakout.Core.Planning
 
             var rangePips = range.HeightInPips(pipSize);
 
-            if (rangePips < _settings.MinRangePips)
+            var minRange = _settings.MinRange.ResolveToPrice(pipSize, atrInPrice, "Min range", out var minReason);
+            if (minReason != null) return BreakoutPlan.Rejected(minReason);
+
+            if (range.Height < minRange)
             {
                 return BreakoutPlan.Rejected(
-                    $"Range {rangePips:F1} pips is below MinRangePips ({_settings.MinRangePips:F1}). " +
-                    "A stop this tight would size the position dangerously large.");
+                    $"Range {rangePips:F1} pips is below the minimum of {minRange / pipSize:F1} pips " +
+                    $"({_settings.MinRange}). A stop this tight would size the position dangerously large.");
             }
 
-            if (_settings.MaxRangePips > 0 && rangePips > _settings.MaxRangePips)
+            var maxRange = _settings.MaxRange.ResolveToPrice(pipSize, atrInPrice, "Max range", out var maxReason);
+            if (maxReason != null) return BreakoutPlan.Rejected(maxReason);
+
+            if (maxRange > 0 && range.Height > maxRange)
             {
                 return BreakoutPlan.Rejected(
-                    $"Range {rangePips:F1} pips exceeds MaxRangePips ({_settings.MaxRangePips:F1}).");
+                    $"Range {rangePips:F1} pips exceeds the maximum of {maxRange / pipSize:F1} pips " +
+                    $"({_settings.MaxRange}).");
             }
 
-            var buffer = _settings.EntryBufferPips * pipSize;
+            var buffer = _settings.EntryBuffer.ResolveToPrice(pipSize, atrInPrice, "Entry buffer", out var bufferReason);
+            if (bufferReason != null) return BreakoutPlan.Rejected(bufferReason);
+
             var buyEntry = range.High + buffer;
             var sellEntry = range.Low - buffer;
 

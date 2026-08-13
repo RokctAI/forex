@@ -105,10 +105,50 @@ namespace LondonBreakout.Core.Tests
         }
 
         [Fact]
-        public void ParseTradingDays_defaults_to_weekdays_when_blank()
+        public void ParseTradingDays_defaults_to_tuesday_only_when_blank()
         {
-            Assert.Equal(5, SessionSchedule.ParseTradingDays("").Count);
-            Assert.Equal(5, SessionSchedule.ParseTradingDays(null).Count);
+            // Clearing the parameter box must NOT silently widen the bot to five days a week.
+            // Monday is an explicit stay-away day and the strategy trades Tuesdays, so the
+            // fallback matches the shipped parameter default rather than the calendar.
+            Assert.Equal(new[] { DayOfWeek.Tuesday }, SessionSchedule.ParseTradingDays(""));
+            Assert.Equal(new[] { DayOfWeek.Tuesday }, SessionSchedule.ParseTradingDays(null));
+        }
+
+        [Fact]
+        public void The_shipped_default_is_tuesday_alone()
+        {
+            Assert.Equal(new[] { DayOfWeek.Tuesday }, SessionSchedule.TuesdayOnly);
+
+            // The parameter default string the cBot ships with must parse to the same thing.
+            Assert.Equal(new[] { DayOfWeek.Tuesday }, SessionSchedule.ParseTradingDays("Tue"));
+        }
+
+        [Fact]
+        public void Monday_is_not_a_trading_day_under_the_shipped_default()
+        {
+            // Monday is called out as a stay-away day, so this is a rule and not an accident of
+            // the default. 13 July 2026 is a Monday; 14 July is the Tuesday.
+            var schedule = Default(DayOfWeek.Tuesday);
+
+            Assert.False(schedule.IsTradingDay(new DateTime(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc)));
+            Assert.Null(schedule.WindowFor(new DateTime(2026, 7, 13, 10, 0, 0, DateTimeKind.Utc)));
+
+            Assert.True(schedule.IsTradingDay(new DateTime(2026, 7, 14, 10, 0, 0, DateTimeKind.Utc)));
+        }
+
+        [Fact]
+        public void Every_non_tuesday_weekday_is_excluded_under_the_shipped_default()
+        {
+            // Mon 13 July 2026 through Fri 17 July 2026.
+            var schedule = Default(DayOfWeek.Tuesday);
+
+            for (var day = 13; day <= 17; day++)
+            {
+                var utc = new DateTime(2026, 7, day, 10, 0, 0, DateTimeKind.Utc);
+                var expected = utc.DayOfWeek == DayOfWeek.Tuesday;
+
+                Assert.Equal(expected, schedule.IsTradingDay(utc));
+            }
         }
 
         [Fact]

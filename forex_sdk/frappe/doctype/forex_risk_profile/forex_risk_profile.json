@@ -1,0 +1,99 @@
+{
+  "doctype": "DocType",
+  "name": "Forex Risk Profile",
+  "engine": "InnoDB",
+  "istable": 0,
+  "module": "{module_name}",
+  "autoname": "hash",
+  "fields": [
+    {
+      "fieldname": "user",
+      "fieldtype": "Link",
+      "label": "User",
+      "options": "User",
+      "reqd": 1,
+      "in_list_view": 1,
+      "in_standard_filter": 1
+    },
+    {
+      "fieldname": "preset",
+      "fieldtype": "Select",
+      "label": "Preset Chosen",
+      "options": "conservative\nbalanced\naggressive\ncustom",
+      "default": "conservative",
+      "in_list_view": 1,
+      "description": "A RECORD of what the user picked, for display only. Nothing reads this to decide risk — the resolved parameters below are the truth. Redefining a preset later must not re-risk anybody already running."
+    },
+    {
+      "fieldname": "resolved_on",
+      "fieldtype": "Datetime",
+      "label": "Resolved On",
+      "read_only": 1,
+      "description": "When the preset was resolved into the parameters below. With the preset name, this is enough to explain any later divergence from the current preset table."
+    },
+    {
+      "fieldname": "risk_section",
+      "fieldtype": "Section Break",
+      "label": "Resolved Parameters"
+    },
+    {
+      "fieldname": "risk_per_trade_pct",
+      "fieldtype": "Float",
+      "label": "Risk Per Trade (% of equity)",
+      "precision": "4",
+      "reqd": 1,
+      "in_list_view": 1,
+      "description": "Maximum equity fraction a single position may risk between entry and stop. Percentages here are of EQUITY, not balance — a drawdown guard that ignores open losses is not a guard."
+    },
+    {
+      "fieldname": "daily_loss_pct",
+      "fieldtype": "Float",
+      "label": "Daily Loss Limit (% of equity)",
+      "precision": "4",
+      "reqd": 1,
+      "description": "Realised-plus-unrealised loss within one trading day that stops new entries for the rest of it."
+    },
+    {
+      "fieldname": "max_drawdown_pct",
+      "fieldtype": "Float",
+      "label": "Max Drawdown (% from peak equity)",
+      "precision": "4",
+      "reqd": 1,
+      "description": "Fall from peak equity that flattens and halts the bot. Restarting is a user action."
+    },
+    {
+      "fieldname": "max_open_positions",
+      "fieldtype": "Int",
+      "label": "Max Open Positions",
+      "default": "1",
+      "reqd": 1,
+      "description": "Whole number, at least 1."
+    },
+    {
+      "fieldname": "currency_section",
+      "fieldtype": "Section Break",
+      "label": "Denomination"
+    },
+    {
+      "fieldname": "account_currency",
+      "fieldtype": "Data",
+      "label": "Account Currency",
+      "length": 3,
+      "description": "ISO 4217 code of the broker account these limits were set against. The four limits above are percentages and so are currency-free, but the moment any absolute cap is added it must sit next to a code — a stored amount whose currency was never recorded cannot be recovered later. Kept here so that day-one field is already present rather than retrofitted."
+    }
+  ],
+  "permissions": [
+    {
+      "role": "System Manager",
+      "read": 1,
+      "create": 1,
+      "write": 1,
+      "delete": 1
+    },
+    {
+      "role": "All",
+      "read": 1,
+      "if_owner": 1
+    }
+  ]
+}

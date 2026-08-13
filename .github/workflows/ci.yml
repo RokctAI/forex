@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The cBot project targets net6.0 (what cTrader Algo loads) while the tests run on
+      # net8.0, so both runtimes are installed. LondonBreakout.Core is multi-targeted and
+      # compiles under each.
+      - name: Set up .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            6.0.x
+            8.0.x
+
+      - name: Restore
+        run: dotnet restore LondonBreakout.sln
+
+      # Builds the cBot too, which exercises the cTrader.Automate packaging step that produces
+      # the .algo. A green test run alone would not catch a break in that path.
+      - name: Build
+        run: dotnet build LondonBreakout.sln --configuration Release --no-restore
+
+      - name: Test
+        run: dotnet test LondonBreakout.sln --configuration Release --no-build --verbosity normal

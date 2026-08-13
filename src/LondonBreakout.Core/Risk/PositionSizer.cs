@@ -111,6 +111,15 @@ namespace LondonBreakout.Core.Risk
             // price distance by a per-pip value would be off by a factor of PipSize -- 10,000x on
             // a 5-digit FX pair, which would size every position catastrophically wrong. The
             // conversion is done explicitly here for that reason.
+            //
+            // Both operands come from the symbol, so this line is correct on any quote precision
+            // without a special case. On GBPUSD a 50-pip stop arrives as 0.0050 and PipSize is
+            // 0.0001; on GBPJPY the same 50-pip stop arrives as 0.50 and PipSize is 0.01. Both
+            // divide to 50. Nothing here assumes five digits.
+            //
+            // PipValuePerUnit is already in ACCOUNT currency (see SymbolConstraints for why that
+            // conversion must not be hand-rolled), so the product below is an account-currency
+            // amount and no further FX conversion belongs in this method.
             var stopInPips = request.StopDistanceInPrice / c.PipSize;
             var riskPerUnit = stopInPips * c.PipValuePerUnit;
 

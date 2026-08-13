@@ -5,8 +5,8 @@ using System.Linq;
 namespace LondonBreakout.Core.Sessions
 {
     /// <summary>
-    /// Turns the configured session times ("range from 00:00, signal at 09:00, Mon-Fri") into
-    /// concrete UTC instants for a given day, via <see cref="SessionClock"/>.
+    /// Turns the configured session times ("range from 00:00, signal at 09:00, Tuesdays only")
+    /// into concrete UTC instants for a given day, via <see cref="SessionClock"/>.
     ///
     /// Pure logic: no cTrader types, so this is directly unit-testable including across the
     /// BST/GMT boundary.
@@ -109,14 +109,32 @@ namespace LondonBreakout.Core.Sessions
         };
 
         /// <summary>
+        /// The shipped default: Tuesday alone.
+        ///
+        /// This is a specified rule, not a guess. Monday is explicitly a "stay away" day, and
+        /// the strategy trades Tuesdays only -- every other weekday is out as well. It remains a
+        /// parameter so the set can be widened for research, but the default the bot ships with
+        /// is this one.
+        ///
+        /// Consequence worth stating where the default lives: one day a week caps the strategy
+        /// at roughly 52 opportunities a year, and not every Tuesday produces a fill. Any
+        /// backtest shorter than several years cannot produce a statistically meaningful sample.
+        /// See the bot README.
+        /// </summary>
+        public static IReadOnlyList<DayOfWeek> TuesdayOnly { get; } = new[] { DayOfWeek.Tuesday };
+
+        /// <summary>
         /// Parses a comma-separated day list such as "Mon,Tue,Wed,Thu,Fri" or "Tuesday".
         /// Used to expose <c>TradingDays</c> as a single cTrader string parameter, because the
         /// cTrader parameter system has no native multi-select control.
+        ///
+        /// A blank value falls back to <see cref="TuesdayOnly"/>, matching the shipped parameter
+        /// default: clearing the box must not silently widen the bot to five days a week.
         /// </summary>
         public static IReadOnlyList<DayOfWeek> ParseTradingDays(string value)
         {
             if (string.IsNullOrWhiteSpace(value))
-                return WeekdaysMondayToFriday;
+                return TuesdayOnly;
 
             var result = new List<DayOfWeek>();
             foreach (var raw in value.Split(new[] { ',', ';', ' ' }, StringSplitOptions.RemoveEmptyEntries))
