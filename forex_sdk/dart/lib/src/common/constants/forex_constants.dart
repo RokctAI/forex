@@ -11,7 +11,12 @@
 class ForexEndpoints {
   const ForexEndpoints._();
 
-  static const String base = '/api/method/paas.api.forex';
+  /// Prefix-free cmd base for base_sdk's universal platform gateway: the
+  /// manifest alias keys with the leading `{app_name}` segment dropped.
+  /// Every call POSTs to the single gateway path with one of the derived
+  /// cmds below — clients never build an app-prefixed `/api/method/...`
+  /// URL themselves.
+  static const String base = 'api.forex';
 
   static const String listStrategies = '$base.list_strategies';
   static const String getStrategy = '$base.get_strategy';
