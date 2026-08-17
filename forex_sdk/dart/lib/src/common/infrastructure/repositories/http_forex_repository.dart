@@ -10,10 +10,14 @@ import '../../domain/models/forex_account.dart';
 import '../../domain/models/forex_risk.dart';
 import '../../domain/models/forex_strategy.dart';
 
-/// Calls the `rforex` backend module over the app's shared Dio client.
+/// Calls the `rforex` backend module through base_sdk's universal platform
+/// gateway ([PlatformGateway]): every call is a POST to the single gateway
+/// path with a `{"cmd": ..., "payload": ...}` body.
 ///
-/// Endpoint paths come from [ForexEndpoints], which mirrors
-/// `forex_sdk/frappe/manifest.json`'s whitelisted-method aliases.
+/// Cmd names come from [ForexEndpoints], which mirrors
+/// `forex_sdk/frappe/manifest.json`'s whitelisted-method aliases with the
+/// leading `{app_name}` segment dropped. Which backend answers is decided
+/// purely by the client's baseUrl.
 ///
 /// Note where this class does and does not catch. Catalog and risk reads
 /// swallow their errors and return the documented safe value; strategy
@@ -21,6 +25,8 @@ import '../../domain/models/forex_strategy.dart';
 /// contract in [ForexRepository], and it exists because a caller cannot
 /// distinguish "locked" from "offline" if both arrive as an empty result.
 class HttpForexRepository implements ForexRepository {
+  static const _gateway = PlatformGateway();
+
   /// Frappe wraps whitelisted return values in a `message` envelope.
   dynamic _unwrap(dynamic data) =>
       data is Map ? (data['message'] ?? data) : data;
@@ -28,9 +34,8 @@ class HttpForexRepository implements ForexRepository {
   @override
   Future<List<ForexStrategySummary>> listStrategies() async {
     try {
-      final client = dioHttp.client(requireAuth: true);
-      final response = await client.get(ForexEndpoints.listStrategies);
-      final message = _unwrap(response.data);
+      final data = await _gateway.tenant(ForexEndpoints.listStrategies);
+      final message = _unwrap(data);
       if (message is! List) return const [];
       return message
           .whereType<Map>()
@@ -47,33 +52,30 @@ class HttpForexRepository implements ForexRepository {
   Future<ForexStrategyDetail> getStrategy(String key) async {
     // Deliberately uncaught: a permission refusal and a dropped connection
     // must reach the caller as different things.
-    final client = dioHttp.client(requireAuth: true);
-    final response = await client.get(
+    final data = await _gateway.tenant(
       ForexEndpoints.getStrategy,
-      queryParameters: {'key': key},
+      {'key': key},
     );
     return ForexStrategyDetail.fromJson(
-      Map<String, dynamic>.from(_unwrap(response.data) as Map),
+      Map<String, dynamic>.from(_unwrap(data) as Map),
     );
   }
 
   @override
   Future<void> pinVersion(String key, int version) async {
-    final client = dioHttp.client(requireAuth: true);
-    await client.post(
+    await _gateway.tenant(
       ForexEndpoints.pinVersion,
-      data: {'key': key, 'version': version},
+      {'key': key, 'version': version},
     );
   }
 
   @override
   Future<ForexRunVerdict> setActive(String key, {required bool active}) async {
-    final client = dioHttp.client(requireAuth: true);
-    final response = await client.post(
+    final data = await _gateway.tenant(
       ForexEndpoints.setActive,
-      data: {'key': key, 'active': active},
+      {'key': key, 'active': active},
     );
-    final message = _unwrap(response.data);
+    final message = _unwrap(data);
     if (message is! Map) {
       // A write that returned an unreadable body is not a success we can
       // report. Fail rather than assume.
@@ -85,9 +87,8 @@ class HttpForexRepository implements ForexRepository {
   @override
   Future<ForexDashboard> dashboard() async {
     try {
-      final client = dioHttp.client(requireAuth: true);
-      final response = await client.get(ForexEndpoints.dashboard);
-      final message = _unwrap(response.data);
+      final data = await _gateway.tenant(ForexEndpoints.dashboard);
+      final message = _unwrap(data);
       if (message is! Map) return ForexDashboard.unavailable;
       return ForexDashboard.fromJson(Map<String, dynamic>.from(message));
     } catch (e) {
@@ -102,9 +103,8 @@ class HttpForexRepository implements ForexRepository {
   @override
   Future<ForexRiskParameters> myRiskParameters() async {
     try {
-      final client = dioHttp.client(requireAuth: true);
-      final response = await client.get(ForexEndpoints.myRiskProfile);
-      return _parseRiskProfile(_unwrap(response.data));
+      final data = await _gateway.tenant(ForexEndpoints.myRiskProfile);
+      return _parseRiskProfile(_unwrap(data));
     } catch (e) {
       debugPrint('==> HttpForexRepository.myRiskParameters failure: $e');
       // Absence resolves to the tightest setting, never to unrestricted.
@@ -116,12 +116,11 @@ class HttpForexRepository implements ForexRepository {
   Future<ForexRiskParameters> setRiskPreset(String presetName) async {
     // Uncaught on purpose: a risk change the user believes happened but did
     // not is the wrong thing to be quiet about.
-    final client = dioHttp.client(requireAuth: true);
-    final response = await client.post(
+    final data = await _gateway.tenant(
       ForexEndpoints.setRiskPreset,
-      data: {'preset': presetName},
+      {'preset': presetName},
     );
-    return _parseRiskProfile(_unwrap(response.data));
+    return _parseRiskProfile(_unwrap(data));
   }
 
   ForexRiskParameters _parseRiskProfile(dynamic message) {
