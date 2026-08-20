@@ -40,18 +40,19 @@ import os
 import unittest
 
 _HERE = os.path.dirname(__file__)
-_FRAPPE_ROOT = os.path.abspath(os.path.join(_HERE, "..", "..", ".."))
+_FRAPPE_ROOT = os.path.abspath(os.path.join(_HERE, "..", "..", "..", ".."))
 _API_DIR = os.path.abspath(os.path.join(_HERE, "..", "api"))
-_DOCTYPE_DIR = os.path.join(_FRAPPE_ROOT, "doctype")
+_DOCTYPE_DIR = os.path.join(_FRAPPE_ROOT, "src", "tenant", "doctype")
 
 with open(os.path.join(_FRAPPE_ROOT, "manifest.json")) as handle:
     MANIFEST = json.load(handle)
 
-WHITELISTED = MANIFEST["hooks"]["whitelisted_methods"]
+WHITELISTED = MANIFEST["app_type"]["tenant"]["hooks"]["whitelisted_methods"]
 
-# The installed layout: `src/rforex/` lands at `{app_name}/rforex/rforex/`,
-# which is the doubled segment every target carries.
-TARGET_PREFIX = "{app_name}.rforex.rforex.api."
+# The installed layout: `src/tenant/rforex/` lands at
+# `{app_name}/rforex/tenant/rforex/` — the persona segment plus the doubled
+# module segment every target carries.
+TARGET_PREFIX = "{app_name}.rforex.tenant.rforex.api."
 ALIAS_PREFIX = "{app_name}.api.forex."
 
 
@@ -140,7 +141,7 @@ class TestWhitelistedMethodsResolve(unittest.TestCase):
 
 class TestFixtures(unittest.TestCase):
     def _fixture_doctypes(self):
-        for fixture in MANIFEST["hooks"]["fixtures"]:
+        for fixture in MANIFEST["app_type"]["tenant"]["hooks"]["fixtures"]:
             if fixture.get("dt") == "DocType":
                 for condition in fixture["filters"]:
                     if condition[0] == "name" and condition[1] == "in":

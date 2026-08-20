@@ -54,11 +54,13 @@ from frappe import _
 from frappe.model.document import Document
 from frappe.utils import now_datetime
 
-# Relative import into the module's pure-rules package. `src/rforex/` is
-# installed as `{app_name}/rforex/rforex/` (the doubled segment visible in
-# manifest.json's whitelisted-method targets) and this file lives at
-# `{app_name}/rforex/doctype/forex_strategy_version/`, so `...rforex`
-# resolves without ever naming `{app_name}`.
+# Relative import into the module's pure-rules package. `src/tenant/rforex/`
+# is installed as `{app_name}/rforex/tenant/rforex/` (the persona segment plus
+# the doubled module segment visible in manifest.json's whitelisted-method
+# targets) while the composer relocates this doctype tree back to
+# `{app_name}/rforex/doctype/forex_strategy_version/` (the Frappe-conventional
+# module-root path, no persona segment), so `...tenant.rforex` resolves
+# without ever naming `{app_name}`.
 #
 # This is a deliberate departure from rlms, where doctype/ and the rules
 # modules duplicate small constants rather than import each other. That
@@ -67,7 +69,7 @@ from frappe.utils import now_datetime
 # two-value range (rlms's MIN_GRADE/MAX_GRADE) is cheap; duplicating spec
 # validation would mean the desk form and the API could disagree about
 # whether a spec is publishable, and the spec is what somebody's money runs.
-from ...rforex import strategy_spec as spec_rules
+from ...tenant.rforex import strategy_spec as spec_rules
 
 
 def _canonical(spec):
