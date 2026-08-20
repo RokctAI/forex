@@ -13,7 +13,7 @@ unit-tested, and the parts that are not built say so out loud. Nothing here has 
 
 ### `frappe/` — the `rforex` backend module
 
-**Pure rule modules** (`src/rforex/`) — no `frappe` import, no site needed, `python -m unittest`:
+**Pure rule modules** (`src/tenant/rforex/`) — no `frappe` import, no site needed, `python -m unittest`:
 
 | Module | What it decides |
 |---|---|
@@ -25,16 +25,16 @@ unit-tested, and the parts that are not built say so out loud. Nothing here has 
 **161 unit tests, all passing.** Run them with:
 
 ```bash
-cd forex_sdk/frappe/src/rforex && python3 -m unittest discover -s tests -t .
+cd forex_sdk/frappe/src/tenant/rforex && python3 -m unittest discover -s tests -t .
 ```
 
 They need no Frappe, no site and no database — each test loads its module by file path, matching
 `agent/lms`'s `tests/test_*.py`.
 
-**DocTypes** (`frappe/doctype/`): `Forex Strategy`, `Forex Strategy Version`, `Forex User Strategy`,
+**DocTypes** (`frappe/src/tenant/doctype/`): `Forex Strategy`, `Forex Strategy Version`, `Forex User Strategy`,
 `Forex Risk Profile`, `Forex Broker Credential`, `Forex Subscription Period`.
 
-**API** (`src/rforex/api/`): `strategy.py`, `account.py`, `credential.py`, `entitlement.py`,
+**API** (`src/tenant/rforex/api/`): `strategy.py`, `account.py`, `credential.py`, `entitlement.py`,
 `risk.py`. All fifteen whitelisted methods are declared in `manifest.json` and a test asserts the
 manifest and the code agree in both directions.
 
@@ -178,15 +178,16 @@ lands, the strategy list is a plain `ListView`.
 ```
 forex_sdk/
 ├── frappe/
-│   ├── manifest.json                 # rforex: whitelisted methods, fixtures, dependencies
-│   ├── doctype/<six doctypes>/       # __init__.py, <name>.json, <name>.py
-│   └── src/rforex/
-│       ├── risk_presets.py           # pure
-│       ├── strategy_spec.py          # pure
-│       ├── margin.py                 # pure
-│       ├── entitlements.py           # pure
-│       ├── api/                      # strategy, account, credential, entitlement, risk
-│       └── tests/                    # 161 tests, plain unittest
+│   ├── manifest.json                 # rforex: app_type personas (tenant populated, control empty)
+│   └── src/tenant/                   # tenant-persona code; stripped from control-marked shells
+│       ├── doctype/<six doctypes>/   # __init__.py, <name>.json, <name>.py (composer relocates to module root)
+│       └── rforex/
+│           ├── risk_presets.py       # pure
+│           ├── strategy_spec.py      # pure
+│           ├── margin.py             # pure
+│           ├── entitlements.py       # pure
+│           ├── api/                  # strategy, account, credential, entitlement, risk
+│           └── tests/                # 161 tests, plain unittest
 └── dart/
     ├── pubspec.yaml, analysis_options.yaml, install.py, manifest.json
     ├── lib/forex_sdk.dart            # barrel

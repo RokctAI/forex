@@ -41,7 +41,7 @@ dotnet test
 The SDK's backend rules are pure Python with no Frappe, no site and no database:
 
 ```bash
-cd forex_sdk/frappe/src/rforex && python3 -m unittest discover -s tests -t .
+cd forex_sdk/frappe/src/tenant/rforex && python3 -m unittest discover -s tests -t .
 ```
 
 The Dart package needs a Flutter toolchain, which CI does not currently install:
