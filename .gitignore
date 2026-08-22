@@ -23,14 +23,3 @@ cAlgo/
 # OS
 .DS_Store
 Thumbs.db
-
-# Python (forex_sdk/frappe — the rforex module and its unittest runs)
-__pycache__/
-*.py[cod]
-
-# Dart / Flutter (forex_sdk/dart). Scoped rather than global: a bare `build/`
-# would also swallow any future directory of that name on the .NET side.
-forex_sdk/dart/.dart_tool/
-forex_sdk/dart/.packages
-forex_sdk/dart/build/
-forex_sdk/dart/pubspec.lock
